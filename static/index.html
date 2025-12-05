@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 뉴스 모아보기</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .app {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header .update-info {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .refresh-btn {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .category-tabs {
+            display: flex;
+            overflow-x: auto;
+            background: white;
+            padding: 10px 10px 0 10px;
+            border-bottom: 1px solid #e0e0e0;
+            position: sticky;
+            top: 80px;
+            z-index: 99;
+            scrollbar-width: none;
+        }
+
+        .category-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .category-tab {
+            flex-shrink: 0;
+            padding: 10px 20px;
+            margin-right: 5px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .category-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .category-tab .count {
+            display: inline-block;
+            background: #f0f0f0;
+            color: #666;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+
+        .category-tab.active .count {
+            background: #667eea;
+            color: white;
+        }
+
+        .news-list {
+            padding: 15px;
+        }
+
+        .news-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+        .news-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        .news-card .category-badge {
+            display: inline-block;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .badge-정치 { background: #e3f2fd; color: #1976d2; }
+        .badge-사건 { background: #fce4ec; color: #c2185b; }
+        .badge-경제 { background: #e8f5e9; color: #388e3c; }
+        .badge-부동산 { background: #fff3e0; color: #f57c00; }
+        .badge-글로벌 { background: #f3e5f5; color: #7b1fa2; }
+        .badge-미국 { background: #e1f5fe; color: #0277bd; }
+        .badge-기타 { background: #f5f5f5; color: #616161; }
+
+        .news-card .title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #222;
+            line-height: 1.4;
+        }
+
+        .news-card .summary {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .news-card .meta {
+            font-size: 12px;
+            color: #999;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px 20px;
+            color: #999;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            margin: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 50px 20px;
+            color: #999;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-size: 12px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .refresh-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // API URL 자동 설정 (같은 도메인)
+        const API_URL = window.location.origin;
+
+        function App() {
+            const [newsData, setNewsData] = useState(null);
+            const [selectedCategory, setSelectedCategory] = useState('전체');
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [refreshing, setRefreshing] = useState(false);
+
+            const fetchNews = async () => {
+                try {
+                    setLoading(true);
+                    setError(null);
+                    const response = await fetch(`${API_URL}/api/news`);
+                    const data = await response.json();
+                    setNewsData(data);
+                    setLoading(false);
+                } catch (err) {
+                    setError('뉴스를 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.');
+                    setLoading(false);
+                }
+            };
+
+            const handleRefresh = async () => {
+                try {
+                    setRefreshing(true);
+                    await fetch(`${API_URL}/api/refresh`, { method: 'POST' });
+                    await fetchNews();
+                    setRefreshing(false);
+                } catch (err) {
+                    setError('새로고침에 실패했습니다.');
+                    setRefreshing(false);
+                }
+            };
+
+            useEffect(() => {
+                fetchNews();
+                // 5분마다 자동 새로고침
+                const interval = setInterval(fetchNews, 300000);
+                return () => clearInterval(interval);
+            }, []);
+
+            if (loading) {
+                return (
+                    <div className="app">
+                        <div className="header">
+                            <h1>🗞️ 실시간 뉴스</h1>
+                        </div>
+                        <div className="loading">
+                            <p>뉴스를 불러오는 중...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (error) {
+                return (
+                    <div className="app">
+                        <div className="header">
+                            <h1>🗞️ 실시간 뉴스</h1>
+                        </div>
+                        <div className="error">{error}</div>
+                        <div style={{textAlign: 'center', padding: '20px'}}>
+                            <button onClick={fetchNews} style={{padding: '10px 20px', cursor: 'pointer'}}>
+                                다시 시도
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            const categories = newsData?.data ? Object.keys(newsData.data) : [];
+            const allNews = newsData?.data ? Object.values(newsData.data).flat() : [];
+            const displayNews = selectedCategory === '전체' 
+                ? allNews 
+                : newsData?.data[selectedCategory] || [];
+
+            const getCategoryBadgeClass = (category) => {
+                if (category.includes('정치') || category.includes('정책')) return 'badge-정치';
+                if (category.includes('사건') || category.includes('사고')) return 'badge-사건';
+                if (category.includes('경제') || category.includes('주식')) return 'badge-경제';
+                if (category.includes('부동산')) return 'badge-부동산';
+                if (category.includes('글로벌')) return 'badge-글로벌';
+                if (category.includes('미국')) return 'badge-미국';
+                return 'badge-기타';
+            };
+
+            const formatDate = (dateString) => {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                const now = new Date();
+                const diff = now - date;
+                const minutes = Math.floor(diff / 60000);
+                const hours = Math.floor(diff / 3600000);
+                
+                if (minutes < 1) return '방금 전';
+                if (minutes < 60) return `${minutes}분 전`;
+                if (hours < 24) return `${hours}시간 전`;
+                return date.toLocaleDateString('ko-KR');
+            };
+
+            return (
+                <div className="app">
+                    <div className="header">
+                        <h1>🗞️ 실시간 뉴스</h1>
+                        <div className="update-info">
+                            마지막 업데이트: {newsData?.last_updated ? 
+                                new Date(newsData.last_updated).toLocaleString('ko-KR') : 
+                                '알 수 없음'}
+                        </div>
+                        <button 
+                            className="refresh-btn" 
+                            onClick={handleRefresh}
+                            disabled={refreshing}
+                        >
+                            {refreshing ? '새로고침 중...' : '🔄 새로고침'}
+                        </button>
+                    </div>
+
+                    <div className="category-tabs">
+                        <button
+                            className={`category-tab ${selectedCategory === '전체' ? 'active' : ''}`}
+                            onClick={() => setSelectedCategory('전체')}
+                        >
+                            전체
+                            <span className="count">{allNews.length}</span>
+                        </button>
+                        {categories.map(category => (
+                            <button
+                                key={category}
+                                className={`category-tab ${selectedCategory === category ? 'active' : ''}`}
+                                onClick={() => setSelectedCategory(category)}
+                            >
+                                {category}
+                                <span className="count">{newsData.data[category].length}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="news-list">
+                        {displayNews.length === 0 ? (
+                            <div className="empty">
+                                <p>해당 카테고리의 뉴스가 없습니다.</p>
+                            </div>
+                        ) : (
+                            displayNews.map((news, index) => (
+                                <div 
+                                    key={index} 
+                                    className="news-card"
+                                    onClick={() => window.open(news.link, '_blank')}
+                                >
+                                    <span className={`category-badge ${getCategoryBadgeClass(news.category)}`}>
+                                        {news.category}
+                                    </span>
+                                    <div className="title">{news.title}</div>
+                                    {news.summary && (
+                                        <div className="summary">{news.summary}</div>
+                                    )}
+                                    <div className="meta">
+                                        <span>{formatDate(news.timestamp)}</span>
+                                        <span>→ 자세히 보기</span>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    <div className="footer">
+                        <p>🤖 AI 기반 뉴스 분류 시스템</p>
+                        <p>30분마다 자동 업데이트</p>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
