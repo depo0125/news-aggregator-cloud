@@ -49,7 +49,7 @@ class NewsClassifierGPT:
 }}"""
 
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",  # 가성비 좋은 모델
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "당신은 뉴스 분류 및 요약 전문가입니다. JSON 형식으로만 응답하세요."},
                     {"role": "user", "content": prompt}
@@ -129,16 +129,3 @@ class NewsClassifierGPT:
             )
         
         return categorized
-
-if __name__ == "__main__":
-    # 테스트
-    classifier = NewsClassifierGPT()
-    
-    sample_news = [
-        {'title': '대통령, 경제정책 발표', 'description': '새로운 경제정책 발표'},
-        {'title': '코스피 상승세 지속', 'description': '주식시장 호조'},
-        {'title': '서울 아파트 가격 상승', 'description': '부동산 시장 과열'},
-    ]
-    
-    result = classifier.classify_fallback(sample_news)
-    print(json.dumps(result, indent=2, ensure_ascii=False))
